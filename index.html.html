@@ -550,9 +550,141 @@
     .result-grid { grid-template-columns: 1fr 1fr; }
     .hero { padding: 40px 16px 36px; }
   }
+
+  /* ── PASSWORD LOCK SCREEN ─────────────────────────────────────────────── */
+  #lock-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--navy);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+  }
+  #lock-screen.hidden { display: none; }
+  .lock-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem;
+    color: var(--gold);
+    margin-bottom: 40px;
+    letter-spacing: 0.05em;
+  }
+  .lock-icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.08); opacity: 0.85; }
+  }
+  .lock-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.7rem;
+    color: white;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .lock-sub {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 36px;
+    text-align: center;
+    max-width: 300px;
+    line-height: 1.5;
+  }
+  .lock-input-wrap {
+    width: 100%;
+    max-width: 340px;
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .lock-input {
+    width: 100%;
+    padding: 16px 20px;
+    border-radius: 14px;
+    border: 2px solid rgba(212,160,23,0.3);
+    background: rgba(255,255,255,0.07);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-align: center;
+    text-transform: uppercase;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  .lock-input::placeholder { color: rgba(255,255,255,0.25); letter-spacing: 0.05em; font-weight: 400; text-transform: none; }
+  .lock-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 4px rgba(212,160,23,0.15); }
+  .lock-input.error { border-color: var(--danger); box-shadow: 0 0 0 4px rgba(220,38,38,0.15); animation: shake 0.4s ease; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+  .lock-btn {
+    width: 100%;
+    max-width: 340px;
+    padding: 16px;
+    border-radius: 14px;
+    border: none;
+    background: var(--gold);
+    color: var(--navy);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+  .lock-btn:hover { background: var(--gold-light); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(212,160,23,0.35); }
+  .lock-btn:active { transform: translateY(0); }
+  .lock-error {
+    color: #fca5a5;
+    font-size: 0.82rem;
+    margin-top: 12px;
+    min-height: 20px;
+    text-align: center;
+    font-weight: 500;
+  }
+  .lock-footer {
+    position: absolute;
+    bottom: 28px;
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.25);
+    text-align: center;
+  }
 </style>
 </head>
 <body>
+
+<!-- ── PASSWORD LOCK SCREEN ───────────────────────────────────────────────── -->
+<div id="lock-screen">
+  <div class="lock-logo">💰 CollegeKit</div>
+  <div class="lock-icon">🔒</div>
+  <div class="lock-title">Members Only</div>
+  <div class="lock-sub">Enter the password from your purchase confirmation email to access your kit.</div>
+  <div class="lock-input-wrap">
+    <input
+      class="lock-input"
+      id="lock-input"
+      type="password"
+      placeholder="Enter password"
+      maxlength="20"
+      autocomplete="off"
+      onkeydown="if(event.key==='Enter') tryUnlock()"
+    >
+  </div>
+  <button class="lock-btn" onclick="tryUnlock()">Unlock My Kit →</button>
+  <div class="lock-error" id="lock-error"></div>
+  <div class="lock-footer">The College Money Survival Kit · Fall 2026 Edition<br>Purchased at jeremiahgo.gumroad.com</div>
+</div>
+
 
 <!-- NAV -->
 <nav class="nav">
@@ -872,8 +1004,14 @@
 <div class="page-footer">The College Money Survival Kit · Fall 2026 Edition</div>
 
 <script>
-// ── DATA ────────────────────────────────────────────────────────────────────
-const weekSavings = new Array(14).fill(0);
+// ── STORAGE HELPERS ──────────────────────────────────────────────────────────
+const LS = {
+  save(key, val) { try { localStorage.setItem('cmsk_' + key, JSON.stringify(val)); } catch(e){} },
+  load(key, fallback) { try { const v = localStorage.getItem('cmsk_' + key); return v !== null ? JSON.parse(v) : fallback; } catch(e){ return fallback; } }
+};
+
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const weekSavings = LS.load('weekSavings', new Array(20).fill(0));
 
 const allocationData = [
   { name: "Emergency Fund", pct: 0.15, color: "#1A6B72" },
@@ -884,30 +1022,12 @@ const allocationData = [
   { name: "Discretionary / Fun Money", pct: 0.05, color: "#16a34a" },
 ];
 
-const budgetData = {
-  income: [
-    { name: "Part-time Job", budgeted: 400 },
-    { name: "Aid Refund (monthly)", budgeted: 200 },
-    { name: "Family Support", budgeted: 100 },
-    { name: "Other Income", budgeted: 0 },
-  ],
-  expenses: [
-    { name: "Groceries / Snacks", budgeted: 80 },
-    { name: "Personal Care", budgeted: 40 },
-    { name: "Laundry", budgeted: 20 },
-    { name: "Transportation", budgeted: 50 },
-    { name: "Subscriptions", budgeted: 30 },
-    { name: "Going Out / Social", budgeted: 80 },
-    { name: "Clothing & Shopping", budgeted: 60 },
-    { name: "Textbooks & Supplies", budgeted: 60 },
-    { name: "Phone Bill", budgeted: 40 },
-    { name: "Miscellaneous", budgeted: 50 },
-  ],
-  savings: [
-    { name: "Emergency Fund Contribution", budgeted: 50 },
-    { name: "Future Goals / Buffer", budgeted: 50 },
-  ]
+const budgetDefaults = {
+  income:   [{ name: "Part-time Job", budgeted: 400 }, { name: "Aid Refund (monthly)", budgeted: 200 }, { name: "Family Support", budgeted: 100 }, { name: "Other Income", budgeted: 0 }],
+  expenses: [{ name: "Groceries / Snacks", budgeted: 80 }, { name: "Personal Care", budgeted: 40 }, { name: "Laundry", budgeted: 20 }, { name: "Transportation", budgeted: 50 }, { name: "Subscriptions", budgeted: 30 }, { name: "Going Out / Social", budgeted: 80 }, { name: "Clothing & Shopping", budgeted: 60 }, { name: "Textbooks & Supplies", budgeted: 60 }, { name: "Phone Bill", budgeted: 40 }, { name: "Miscellaneous", budgeted: 50 }],
+  savings:  [{ name: "Emergency Fund Contribution", budgeted: 50 }, { name: "Future Goals / Buffer", budgeted: 50 }]
 };
+const budgetData = LS.load('budgetData', budgetDefaults);
 
 const checklistItems = [
   { text: "Open a free checking account with no monthly fees", detail: "Chime, Ally, or a local credit union work great for students.", phase: "This Week" },
@@ -923,6 +1043,7 @@ const checklistItems = [
   { text: "Book holiday travel as soon as school calendar is out", detail: "Thanksgiving flights booked last-minute can cost $400+. Book in September.", phase: "September" },
   { text: "Do your first Sunday 5-minute money check-in", detail: "Open your bank app. Check balances. Set this as a weekly Sunday habit.", phase: "Week 1 of School" },
 ];
+const checkState = LS.load('checkState', new Array(checklistItems.length).fill(false));
 
 // ── NAVIGATION ───────────────────────────────────────────────────────────────
 function showPage(id) {
@@ -932,9 +1053,10 @@ function showPage(id) {
   const btns = document.querySelectorAll('.tab-btn');
   btns.forEach(b => { if (b.getAttribute('onclick').includes("'" + id + "'")) b.classList.add('active'); });
   window.scrollTo(0, 0);
+  LS.save('lastPage', id);
 }
 
-// ── SUMMER SAVER ──────────────────────────────────────────────────────────────
+// ── SUMMER SAVER ─────────────────────────────────────────────────────────────
 let activeWeekIdx = null;
 
 function buildWeekGrid() {
@@ -947,27 +1069,21 @@ function buildWeekGrid() {
     const isEditing = activeWeekIdx === i;
     cell.className = 'week-cell' + (isSaved ? ' saved' : '') + (isEditing ? ' editing' : '');
     cell.id = 'week-cell-' + i;
-    cell.innerHTML = `
-      <div class="wk-num">Wk ${i+1}</div>
-      <div class="wk-amt">${isSaved ? '$' + weekSavings[i] : '—'}</div>
-    `;
+    cell.innerHTML = `<div class="wk-num">Wk ${i+1}</div><div class="wk-amt">${isSaved ? '$' + weekSavings[i] : '—'}</div>`;
     cell.onclick = () => openWeekEditor(i);
     grid.appendChild(cell);
   }
 }
 
 function openWeekEditor(idx) {
-  // If tapping the same week that's open, close it
   if (activeWeekIdx === idx) { closeWeekEditor(); return; }
   activeWeekIdx = idx;
   const editor = document.getElementById('week-editor');
-  const label = document.getElementById('week-editor-label');
+  document.getElementById('week-editor-label').textContent = 'Week ' + (idx + 1) + ' — How much did you save?';
   const input = document.getElementById('week-editor-input');
-  label.textContent = 'Week ' + (idx + 1) + ' — How much did you save?';
   input.value = weekSavings[idx] > 0 ? weekSavings[idx] : '';
   editor.classList.add('open');
   buildWeekGrid();
-  // Scroll editor into view smoothly
   setTimeout(() => editor.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
   input.focus();
 }
@@ -982,9 +1098,8 @@ function closeWeekEditor() {
 function saveWeek() {
   if (activeWeekIdx === null) return;
   const val = parseFloat(document.getElementById('week-editor-input').value);
-  if (!isNaN(val) && val >= 0) {
-    weekSavings[activeWeekIdx] = val;
-  }
+  if (!isNaN(val) && val >= 0) weekSavings[activeWeekIdx] = val;
+  LS.save('weekSavings', weekSavings);
   closeWeekEditor();
   updateSummerStats();
 }
@@ -992,17 +1107,20 @@ function saveWeek() {
 function clearWeek() {
   if (activeWeekIdx === null) return;
   weekSavings[activeWeekIdx] = 0;
+  LS.save('weekSavings', weekSavings);
   closeWeekEditor();
   updateSummerStats();
 }
 
-// Allow pressing Enter to save
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && activeWeekIdx !== null) saveWeek();
   if (e.key === 'Escape' && activeWeekIdx !== null) closeWeekEditor();
 });
 
 function updateSummer() {
+  // save goal & weeks settings
+  LS.save('summerGoal', document.getElementById('summer-goal').value);
+  LS.save('summerWeeks', document.getElementById('summer-weeks').value);
   buildWeekGrid();
   updateSummerStats();
 }
@@ -1011,12 +1129,10 @@ function updateSummerStats() {
   const goal = parseFloat(document.getElementById('summer-goal').value) || 2000;
   const weeks = parseInt(document.getElementById('summer-weeks').value) || 14;
   const perWeek = goal / weeks;
-  const perCheck = perWeek * 2;
   const saved = weekSavings.slice(0, weeks).reduce((a, b) => a + b, 0);
   const pct = Math.min(100, (saved / goal) * 100);
-
   document.getElementById('summer-per-week').textContent = '$' + Math.round(perWeek);
-  document.getElementById('summer-per-check').textContent = '$' + Math.round(perCheck);
+  document.getElementById('summer-per-check').textContent = '$' + Math.round(perWeek * 2);
   document.getElementById('summer-total-saved').textContent = '$' + saved.toLocaleString();
   document.getElementById('summer-pct').textContent = pct.toFixed(1) + '%';
   document.getElementById('summer-progress').style.width = pct + '%';
@@ -1026,9 +1142,10 @@ function updateSummerStats() {
 function updateRefund() {
   const amount = parseFloat(document.getElementById('refund-amount').value) || 0;
   const months = parseInt(document.getElementById('refund-months').value) || 4;
+  LS.save('refundAmount', amount);
+  LS.save('refundMonths', months);
   const list = document.getElementById('allocation-list');
   list.innerHTML = '';
-
   let livingPool = 0;
   allocationData.forEach(a => {
     const dollars = amount * a.pct;
@@ -1039,112 +1156,104 @@ function updateRefund() {
       <div class="alloc-dot" style="background:${a.color}"></div>
       <div class="alloc-name">${a.name}</div>
       <div class="alloc-pct">${(a.pct * 100).toFixed(0)}%</div>
-      <div class="alloc-amt">$${dollars.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})}</div>
-    `;
+      <div class="alloc-amt">$${dollars.toLocaleString('en-US', {minimumFractionDigits:0,maximumFractionDigits:0})}</div>`;
     list.appendChild(row);
   });
-
-  const monthly = months > 0 ? livingPool / months : 0;
-  document.getElementById('monthly-allowance').textContent = '$' + Math.round(monthly).toLocaleString();
+  document.getElementById('monthly-allowance').textContent = '$' + Math.round(months > 0 ? livingPool / months : 0).toLocaleString();
 }
 
 // ── BUDGET ────────────────────────────────────────────────────────────────────
 function buildBudget() {
   const tbody = document.getElementById('budget-body');
   tbody.innerHTML = '';
-
   function addSection(label, items, type) {
     const hdr = document.createElement('tr');
     hdr.className = 'budget-section-header';
     hdr.innerHTML = `<td colspan="4">${label}</td>`;
     tbody.appendChild(hdr);
-
     items.forEach((item, idx) => {
+      const saved = budgetData[type] && budgetData[type][idx];
+      const budgeted = saved ? saved.budgeted : item.budgeted;
+      const actual   = saved ? (saved.actual || 0) : 0;
       const tr = document.createElement('tr');
-      tr.dataset.type = type;
-      tr.dataset.idx = idx;
       tr.innerHTML = `
         <td>${item.name}</td>
-        <td style="text-align:right"><input type="number" value="${item.budgeted}" style="width:90px;text-align:right;" oninput="updateBudgetSummary()" class="budget-${type}-${idx}-budget"></td>
-        <td style="text-align:right"><input type="number" value="0" style="width:90px;text-align:right;" oninput="updateBudgetSummary()" class="budget-${type}-${idx}-actual"></td>
-        <td style="text-align:right" class="budget-${type}-${idx}-diff">—</td>
-      `;
+        <td style="text-align:right"><input type="number" value="${budgeted}" style="width:90px;text-align:right;" oninput="saveBudget();updateBudgetSummary()" class="budget-${type}-${idx}-budget"></td>
+        <td style="text-align:right"><input type="number" value="${actual}" style="width:90px;text-align:right;" oninput="saveBudget();updateBudgetSummary()" class="budget-${type}-${idx}-actual"></td>
+        <td style="text-align:right" class="budget-${type}-${idx}-diff">—</td>`;
       tbody.appendChild(tr);
     });
   }
-
-  addSection('💰 INCOME', budgetData.income, 'income');
-  addSection('🏦 SAVINGS', budgetData.savings, 'savings');
-  addSection('💳 EXPENSES', budgetData.expenses, 'expenses');
+  addSection('💰 INCOME', budgetDefaults.income, 'income');
+  addSection('🏦 SAVINGS', budgetDefaults.savings, 'savings');
+  addSection('💳 EXPENSES', budgetDefaults.expenses, 'expenses');
   updateBudgetSummary();
+}
+
+function saveBudget() {
+  ['income','savings','expenses'].forEach(type => {
+    budgetDefaults[type].forEach((_, idx) => {
+      const bEl = document.querySelector(`.budget-${type}-${idx}-budget`);
+      const aEl = document.querySelector(`.budget-${type}-${idx}-actual`);
+      if (!budgetData[type]) budgetData[type] = [];
+      if (!budgetData[type][idx]) budgetData[type][idx] = {};
+      if (bEl) budgetData[type][idx].budgeted = parseFloat(bEl.value) || 0;
+      if (aEl) budgetData[type][idx].actual   = parseFloat(aEl.value) || 0;
+    });
+  });
+  LS.save('budgetData', budgetData);
 }
 
 function getTotal(type, field) {
   let sum = 0;
   document.querySelectorAll(`[class*="budget-${type}-"]`).forEach(el => {
-    if (el.className.includes(field)) {
-      sum += parseFloat(el.value) || 0;
-    }
+    if (el.className.includes(field)) sum += parseFloat(el.value) || 0;
   });
   return sum;
 }
 
 function updateBudgetSummary() {
-  // Update diff cells
-  ['income', 'savings', 'expenses'].forEach(type => {
-    const items = budgetData[type];
-    items.forEach((_, idx) => {
+  ['income','savings','expenses'].forEach(type => {
+    budgetDefaults[type].forEach((_, idx) => {
       const bEl = document.querySelector(`.budget-${type}-${idx}-budget`);
       const aEl = document.querySelector(`.budget-${type}-${idx}-actual`);
       const dEl = document.querySelector(`.budget-${type}-${idx}-diff`);
       if (bEl && aEl && dEl) {
-        const b = parseFloat(bEl.value) || 0;
-        const a = parseFloat(aEl.value) || 0;
-        const d = a - b;
+        const d = (parseFloat(aEl.value)||0) - (parseFloat(bEl.value)||0);
         dEl.textContent = (d >= 0 ? '+' : '') + '$' + d.toFixed(0);
         dEl.className = d >= 0 ? 'diff-pos' : 'diff-neg';
       }
     });
   });
-
-  const incB = getTotal('income', 'budget'), incA = getTotal('income', 'actual');
-  const savB = getTotal('savings', 'budget'), savA = getTotal('savings', 'actual');
-  const expB = getTotal('expenses', 'budget'), expA = getTotal('expenses', 'actual');
-  const leftB = incB - savB - expB;
+  const incA = getTotal('income','actual'), savA = getTotal('savings','actual'), expA = getTotal('expenses','actual');
   const leftA = incA - savA - expA;
-
-  const sumDiv = document.getElementById('budget-summary');
-  sumDiv.innerHTML = `
+  document.getElementById('budget-summary').innerHTML = `
     <div class="result-box royal"><div class="val">$${Math.round(incA)}</div><div class="lbl">Monthly Income</div></div>
     <div class="result-box teal"><div class="val">$${Math.round(savA)}</div><div class="lbl">Saved This Month</div></div>
     <div class="result-box" style="background:#7c3aed"><div class="val">$${Math.round(expA)}</div><div class="lbl">Total Expenses</div></div>
-    <div class="result-box ${leftA >= 0 ? 'gold' : ''}" style="${leftA < 0 ? 'background:var(--danger)' : ''}"><div class="val">$${Math.round(leftA)}</div><div class="lbl">${leftA >= 0 ? 'Left Over' : 'Over Budget'}</div></div>
-  `;
+    <div class="result-box ${leftA >= 0 ? 'gold' : ''}" style="${leftA < 0 ? 'background:var(--danger)' : ''}"><div class="val">$${Math.round(leftA)}</div><div class="lbl">${leftA >= 0 ? 'Left Over' : 'Over Budget'}</div></div>`;
 }
 
 // ── EMERGENCY FUND ────────────────────────────────────────────────────────────
 function updateEF() {
-  const saved = parseFloat(document.getElementById('ef-saved').value) || 0;
+  const saved  = parseFloat(document.getElementById('ef-saved').value) || 0;
   const weekly = parseFloat(document.getElementById('ef-weekly').value) || 0;
-  const goal = 500;
-  const pct = Math.min(100, (saved / goal) * 100);
-  const left = Math.max(0, goal - saved);
-  const weeks = weekly > 0 ? Math.ceil(left / weekly) : '∞';
-
+  LS.save('efSaved', saved);
+  LS.save('efWeekly', weekly);
+  const pct  = Math.min(100, (saved / 500) * 100);
+  const left = Math.max(0, 500 - saved);
+  const wks  = weekly > 0 ? Math.ceil(left / weekly) : '∞';
   document.getElementById('ef-pct').textContent = pct.toFixed(1) + '%';
   document.getElementById('ef-progress').style.width = pct + '%';
   document.getElementById('ef-left').textContent = '$' + left;
-  document.getElementById('ef-weeks').textContent = weeks + (weeks !== '∞' ? ' wks' : '');
+  document.getElementById('ef-weeks').textContent = wks + (wks !== '∞' ? ' wks' : '');
 }
 
 // ── CHECKLIST ─────────────────────────────────────────────────────────────────
-const checkState = new Array(checklistItems.length).fill(false);
-
 function buildChecklist() {
   const container = document.getElementById('checklist-items');
   container.innerHTML = '';
   let lastPhase = '';
-
   checklistItems.forEach((item, i) => {
     if (item.phase !== lastPhase) {
       const ph = document.createElement('div');
@@ -1153,7 +1262,6 @@ function buildChecklist() {
       container.appendChild(ph);
       lastPhase = item.phase;
     }
-
     const el = document.createElement('div');
     el.className = 'check-item' + (checkState[i] ? ' checked' : '');
     el.innerHTML = `
@@ -1162,34 +1270,81 @@ function buildChecklist() {
           <path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="check-text">
-        <strong>${item.text}</strong>
-        <span>${item.detail}</span>
-      </div>
-    `;
+      <div class="check-text"><strong>${item.text}</strong><span>${item.detail}</span></div>`;
     el.onclick = () => {
       checkState[i] = !checkState[i];
       el.classList.toggle('checked');
+      LS.save('checkState', checkState);
       updateCheckProgress();
     };
     container.appendChild(el);
   });
+  updateCheckProgress();
 }
 
 function updateCheckProgress() {
   const done = checkState.filter(Boolean).length;
-  const total = checklistItems.length;
-  const pct = (done / total) * 100;
-  document.getElementById('check-count').textContent = done + ' / ' + total;
+  const pct  = (done / checklistItems.length) * 100;
+  document.getElementById('check-count').textContent = done + ' / ' + checklistItems.length;
   document.getElementById('check-progress').style.width = pct + '%';
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-updateSummer();
-updateRefund();
-buildBudget();
-updateEF();
-buildChecklist();
+// ── INIT — restore saved values then render ───────────────────────────────────
+(function init() {
+  // Summer
+  const sg = LS.load('summerGoal', 2000);
+  const sw = LS.load('summerWeeks', 14);
+  document.getElementById('summer-goal').value  = sg;
+  document.getElementById('summer-weeks').value = sw;
+  updateSummer();
+
+  // Refund
+  document.getElementById('refund-amount').value = LS.load('refundAmount', 1500);
+  document.getElementById('refund-months').value = LS.load('refundMonths', 4);
+  updateRefund();
+
+  // Budget
+  buildBudget();
+
+  // Emergency fund
+  document.getElementById('ef-saved').value  = LS.load('efSaved', 0);
+  document.getElementById('ef-weekly').value = LS.load('efWeekly', 35);
+  updateEF();
+
+  // Checklist
+  buildChecklist();
+
+  // Restore last active page
+  const last = LS.load('lastPage', 'home');
+  showPage(last);
+})();
+
+// ── PASSWORD LOCK ─────────────────────────────────────────────────────────────
+const PASS = 'CMSK2026';
+
+function tryUnlock() {
+  const input = document.getElementById('lock-input');
+  const errEl = document.getElementById('lock-error');
+  const val   = input.value.trim().toUpperCase();
+
+  if (val === PASS) {
+    LS.save('unlocked', true);
+    document.getElementById('lock-screen').classList.add('hidden');
+    errEl.textContent = '';
+  } else {
+    input.classList.add('error');
+    errEl.textContent = 'Incorrect password. Check your purchase email and try again.';
+    setTimeout(() => input.classList.remove('error'), 500);
+    input.value = '';
+    input.focus();
+  }
+}
+
+// Check on load — if already unlocked skip the screen
+if (LS.load('unlocked', false) === true) {
+  document.getElementById('lock-screen').classList.add('hidden');
+}
+
 </script>
 </body>
 </html>
